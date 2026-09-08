@@ -21,6 +21,7 @@ import tempfile
 import time
 from datetime import datetime, timezone
 from pathlib import Path
+from types import ModuleType
 
 
 CLASSES = ["Focused", "Normal", "Distracted"]
@@ -165,10 +166,12 @@ def verify(prefix, root, native=False, native_seconds=8, fixtures=None, timeout=
         assert demo["scenarios"]["reading"]["corrected"]["correction"] is not None
         # Inspect files exported by the executable under test, including frozen resources.
         import struct
+        image_module: ModuleType | None = None
         try:
             from PIL import Image
+            image_module = Image
         except ImportError:
-            Image = None
+            pass
         for name in ("mira", "jun", "ada", "sol"):
             assert len(demo["characters"][name]["actions"]) == 8
             sprite = root / "demo/characters" / name / "sprites.png"
@@ -176,15 +179,15 @@ def verify(prefix, root, native=False, native_seconds=8, fixtures=None, timeout=
             assert header[:8] == b"\x89PNG\r\n\x1a\n"
             assert struct.unpack(">II", header[16:24]) == (256, 640)
             assert header[24:26] == bytes([8, 6])  # Eight-bit RGBA PNG.
-            if Image is not None:
-                with Image.open(sprite) as image:
+            if image_module is not None:
+                with image_module.open(sprite) as image:
                     assert image.mode == "RGBA" and image.getchannel("A").getextrema() == (0, 255)
         report["checks"] = {"deterministic_replay": True, "parameter_numeric_effect": True,
             "numeric_candidate_created_and_reloaded": True, "no_early_model_or_parameter_activation": True,
             "corrupt_artifact_rejected": True, "synthetic_to_real_rejected": True,
             "calibration_trials_each": 64, "evaluate_seeds": 1, "evaluate_trials_each": 8,
             "static_demo_matches_core": True, "bundled_characters": 4,
-            "alpha_extrema": "passed" if Image is not None else "not tested; driver Pillow unavailable",
+            "alpha_extrema": "passed" if image_module is not None else "not tested; driver Pillow unavailable",
             "browser_interaction": "not tested"}
         for command in ("demo", "run"):
             data_dir = root / f"native-{command}"
