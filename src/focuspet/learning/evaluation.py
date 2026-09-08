@@ -1,4 +1,3 @@
-"""Fixed-seed, fixed-split simulation comparisons; no claim of real-user validation."""
 from __future__ import annotations
 
 import hashlib
@@ -55,7 +54,6 @@ def _class_comparison(train, validation, test, names, seed):
 
 
 def _query_stream(pool, names, seed, strategy):
-    """Exercise production query selection at two opportunities daily, four hours apart."""
     from focuspet.domain import FeatureWindow, Prediction
     from focuspet.policy import ActiveQuerySelector
     selector = ActiveQuerySelector(seed=seed, audit_fraction=1 if strategy == "random" else .25)
@@ -68,7 +66,6 @@ def _query_stream(pool, names, seed, strategy):
     selected, query_log, snapshots = [], [], {}
     estimator = scaler = None
     for _, candidates in sorted(opportunities.items()):
-        # Availability includes all candidate windows before a request; no future outcomes.
         available = []
         for group in candidates:
             r = group[-1]
@@ -93,7 +90,6 @@ def _query_stream(pool, names, seed, strategy):
                           "target_end": query.end, "counted_labels": 1})
         n = len(query_log)
         if set(targets(selected).tolist()) == {0, 1, 2}:
-            # Fit only past answered selected episodes; candidate answers remain hidden.
             scaler = StandardScaler().fit(matrix(selected, names), sample_weight=episode_weights(selected))
             estimator = LogisticRegression(C=1, max_iter=300, random_state=seed)
             estimator.fit(scaler.transform(matrix(selected, names)), targets(selected),

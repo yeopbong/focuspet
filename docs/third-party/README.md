@@ -1,6 +1,6 @@
 # Third-party components
 
-The application source is MIT. Bundled components retain their own licenses. Runtime and development dependencies below reflect the measured environment. Qt/PySide includes LGPL/GPL/commercial licensing options; distribution must preserve applicable notices and allow the rights required by those licenses. Dynamic Qt libraries remain separate files in the bundle; source rebuild instructions are provided in the project. No claim of exclusive authorship is made for third-party code.
+Bundled components retain their own licenses. Qt library replacement and source build instructions are in [Qt notices](qt/README.md).
 
 | Component | Version | Declared license | Preserved notices |
 |---|---|---|---|

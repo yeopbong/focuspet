@@ -1,4 +1,3 @@
-"""Portable numeric model artifacts. No pickle, joblib, code, or external imports."""
 from __future__ import annotations
 
 import hashlib
@@ -48,7 +47,6 @@ def load_artifact(path: Path, feature_names: list[str] | tuple[str, ...] | None 
         raise ValueError("Feature order mismatch")
     if mode is not None and payload["mode"] != mode:
         raise ValueError("Model mode mismatch")
-    # Conservative compatibility policy even though numeric inference is independent.
     from importlib.metadata import version
     if payload["dependencies"]["scikit-learn"].split(".")[:2] != version("scikit-learn").split(".")[:2]:
         raise ValueError("Model training dependency incompatible; retrain safely")
@@ -131,7 +129,6 @@ class NumericModel:
             result = np.exp(logits)
             return result / result.sum(axis=1, keepdims=True)
         result = np.zeros((len(x), 3))
-        # sklearn trees use float32 input at prediction, including threshold ties.
         x = x.astype(np.float32)
         for t in p["trees"]:
             for i, row in enumerate(x):

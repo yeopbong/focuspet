@@ -1,4 +1,3 @@
-"""Explicit-feedback personal learning and local version management."""
 from .data import status_records
 __all__ = ["ModelRegistry", "TrainingCancelled", "status_records", "train_file", "train_records"]
 

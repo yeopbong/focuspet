@@ -1,5 +1,3 @@
-"""Short measured system costs. This is explicitly not the two-hour native soak."""
-
 from __future__ import annotations
 import argparse
 import json

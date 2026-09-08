@@ -1,5 +1,3 @@
-"""Real Qt widgets with a bounded in-memory service, no collection permissions."""
-
 from __future__ import annotations
 
 import copy

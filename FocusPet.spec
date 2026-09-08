@@ -1,4 +1,3 @@
-# Native macOS arm64 desktop bundle. Build with scripts/build_macos.sh.
 from PyInstaller.utils.hooks import collect_data_files, collect_submodules, copy_metadata
 
 assets = collect_data_files('focuspet') + copy_metadata('focuspet', recursive=True)
@@ -12,11 +11,8 @@ a = Analysis(['scripts/desktop.py'], pathex=['src'], binaries=[], datas=assets,
                        'PySide6.QtWebEngineWidgets', 'PySide6.QtWebEngineQuick',
                        'PySide6.QtQml', 'PySide6.QtQuick', 'PySide6.QtQuickWidgets'],
              noarchive=False)
-# Qt's plugin scan otherwise pulls unused PDF, QML and virtual-keyboard modules.
-# This PNG-only Widgets application needs none of those optional plugins.
 def needed(entry):
     path = entry[0].replace('\\', '/').lower()
-    # Editable-install provenance is not needed at runtime and includes local paths.
     if path.endswith('/direct_url.json'):
         return False
     if any('/plugins/' + name + '/' in path for name in

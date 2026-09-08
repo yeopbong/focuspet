@@ -1,5 +1,3 @@
-"""All reusable product copy in one place; English is the initial UI locale."""
-
 PROFILES = ["Coding", "Research / Reading", "Office / Writing", "Creative", "Mixed"]
 CATEGORIES = ["IDE", "Browser", "Reader", "Office", "Creative", "Communication", "Entertainment", "Other"]
 LABELS = ["Focused", "Normal", "Distracted", "Rest", "Not sure"]

@@ -1,6 +1,6 @@
 # Reproducible simulation protocol
 
-The publication verification reran five seeds: 7, 17, 27, 37, 47. The source is entirely fictional. No personal activity data was read, no population model was trained, and no real intervention was performed.
+The simulation uses five seeds: 7, 17, 27, 37, 47. Activity and feedback are synthetic; results do not measure real personal accuracy or work habits.
 
 Run from the installed source checkout:
 
@@ -30,8 +30,6 @@ Each seed samples a different hidden simulated growth/recovery pair. Twelve days
 
 Random Search and TPE each replay exactly the same fitting history 64 times, using the production workload dynamics and fixed regularized objective. Nine complete days fit parameters; three later days are held out. The optimizer winner is selected by fitting loss, not later-days loss. Candidate parameter stability across seeds reflects simulated heterogeneity as well as noise; it is not a measurement of human stability. Budget curves are every trial's `best_so_far` series, not interpolated or invented observations.
 
-## Results and evidence limits
+## Results
 
-[The results report](../experiments/results/report.md) and its machine-readable per-seed records contain the current rerun's exact metrics. Active selection does not improve every condition, and lower fitting loss does not guarantee lower held-out loss.
-
-These simulator results do not justify activating real personal versions. Future shadow activation, withdrawal, damaged-model fallback, cancellation, causal event ordering and label availability are covered separately by lifecycle tests. System cost and native longevity appear in [platform status](platform-status.md). This experiment does not substitute for a two-hour real desktop run or establish the effectiveness of any reminder policy.
+[The results report](../experiments/results/report.md) and its machine-readable per-seed records contain the metrics. Active selection does not improve every condition, and lower fitting loss does not guarantee lower held-out loss.

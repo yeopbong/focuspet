@@ -1,5 +1,3 @@
-"""Pure Python domain; independent of GUI and platform APIs."""
-
 from .types import (
     ActivityBucket,
     FeatureWindow,
@@ -14,7 +12,6 @@ from .clock import Clock, SystemClock, FakeClock
 from .workload import Workload, WorkloadParameters, LoadBand
 
 
-# Lazy engine import avoids a cycle when feature extraction is imported first.
 def __getattr__(name):
     if name in ("Engine", "StateSmoother"):
         from .engine import Engine, StateSmoother

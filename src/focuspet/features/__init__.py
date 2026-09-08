@@ -1,5 +1,3 @@
-"""Causal feature extraction from disjoint, privacy-limited aggregate buckets."""
-
 from __future__ import annotations
 from collections import deque
 from math import log1p

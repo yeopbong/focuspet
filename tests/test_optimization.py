@@ -86,7 +86,7 @@ def test_parameter_later_evidence_can_activate_then_revert(tmp_path, data):
     with pytest.raises(ValueError, match="different data mode"):
         ParameterRegistry(tmp_path, "real")
     persisted = json.loads((tmp_path / "parameter-registry.json").read_text())
-    persisted["active"] = version  # Tampering without updating the checksum cannot activate a candidate.
+    persisted["active"] = version
     (tmp_path / "parameter-registry.json").write_text(json.dumps(persisted))
     assert ParameterRegistry(tmp_path, "synthetic-demo").active_parameters()["version"] == "defaults-v1"
 

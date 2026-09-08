@@ -1,9 +1,3 @@
-"""Fetch public, pinned upstream license texts and attribution metadata only.
-
-This is a release-maintenance utility, never called by the application. No source
-archive, executable, dependency, user information or private file is transferred.
-"""
-
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
@@ -64,13 +58,10 @@ def collect(repo: str) -> dict:
     for path, raw in downloaded.items():
         if not path.endswith("qt_attribution.json"):
             continue
-        # Some upstream attribution inventories contain literal line breaks in
-        # quoted copyright notices. Preserve the original bytes, parse permissively.
         data = json.loads(raw, strict=False)
         entries = data if isinstance(data, list) else [data]
         for entry in entries:
             for name in str(entry.get("LicenseFile", "")).split():
-                # Attribution paths are repository-relative to their own directory.
                 from posixpath import normpath
 
                 resolved = normpath(str(PurePosixPath(path).parent / name))

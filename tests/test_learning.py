@@ -109,7 +109,7 @@ def test_thresholds_cancellation_and_no_automatic_early_activation(tmp_path):
     assert train_records(records, tmp_path, mode="test", now=now+90000, automatic=True)["status"] == "not-due"
     new_records = records + records_for_days(1, offset=7)
     assert train_records(new_records, tmp_path, mode="test", now=now+172800,
-                         automatic=True)["status"] == "not-due"  # Do not starve shadow evidence.
+                         automatic=True)["status"] == "not-due"
     with pytest.raises(ValueError, match="different data mode"):
         ModelRegistry(tmp_path, "real")
 
@@ -119,7 +119,6 @@ def test_new_independent_shadow_activation_corrupt_fallback_and_rollback(tmp_pat
     trained = train_records(records_for_days(), tmp_path, mode="test", now=now)
     registry = ModelRegistry(tmp_path, "test")
     audit = records_for_days(2, offset=7, source="audit")
-    # Ordinary active-selection feedback cannot be silently reused as independent audit.
     selected = copy.deepcopy(audit)
     for row in selected:
         row["source"] = "active-query"
@@ -127,7 +126,6 @@ def test_new_independent_shadow_activation_corrupt_fallback_and_rollback(tmp_pat
     activated = registry.evaluate_shadow(audit, now=EPOCH+10*86400)
     assert activated["status"] == "activated"
     assert ModelRegistry(tmp_path, "test").active_predictor() is not None
-    # Restart loading recovers safely from a damaged active artifact.
     registry.artifact_path(trained["version"]).write_text("broken")
     assert ModelRegistry(tmp_path, "test").active_predictor() is None
     assert registry.rollback()["active"] is None

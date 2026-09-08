@@ -30,6 +30,6 @@ Wall times are UTC epoch values; native interval duration comes from an injectab
 
 Model artifacts contain numeric JSON, feature ordering, class ordering, scaler, dependency versions, checksums and metadata. No arbitrary external pickle/joblib import exists. Registries update atomically. Corruption, incompatible schema or missing source data falls back to a retained valid version or the generic prior.
 
-The static demo embeds Python-generated trajectory data in a local script file. Its JavaScript renders values, frames and timeline position; it contains no second classification or workload formula. It works by opening `demo/index.html` directly.
+The static demo embeds Python-generated trajectory data in a local script file. Its JavaScript renders values, frames and timeline position; it contains no second classification or workload formula. Open `demo/index.html` in a browser, or serve the directory with `python3 -m http.server 8000 --bind 127.0.0.1`.
 
 See [data dictionary](data-dictionary.md), [model and parameter details](models-and-parameters.md) and [privacy](privacy.md).

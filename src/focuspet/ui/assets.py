@@ -1,5 +1,3 @@
-"""Manifest-driven sprite loading with safe action and character fallbacks."""
-
 from __future__ import annotations
 
 import json

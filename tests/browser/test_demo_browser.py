@@ -1,4 +1,3 @@
-"""HTTP browser verification. This suite makes no claim about file-URL access."""
 from __future__ import annotations
 
 from functools import partial

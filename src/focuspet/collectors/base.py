@@ -1,5 +1,3 @@
-"""Collector boundary: only aggregate activity crosses this interface."""
-
 from __future__ import annotations
 
 from typing import Protocol
@@ -9,7 +7,6 @@ from focuspet.domain import ActivityBucket, CATEGORIES
 
 
 def validate_categories(value: dict) -> dict[str, str]:
-    """Allow coarse category mappings keyed by bundle identifiers, never paths."""
     if not isinstance(value, dict):
         raise ValueError("Application categories must be a bundle identifier mapping")
     result = {}
@@ -34,7 +31,6 @@ class Collector(Protocol):
 
 
 class UnsupportedCollector:
-    """Safe platform fallback, deliberately no pretend global input support."""
 
     def __init__(self, **kwargs):
         self.paused = True

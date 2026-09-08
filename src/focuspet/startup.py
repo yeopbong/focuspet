@@ -1,5 +1,3 @@
-"""Explicit opt-in login agent. No startup entries are written by default."""
-
 from __future__ import annotations
 import plistlib
 import sys

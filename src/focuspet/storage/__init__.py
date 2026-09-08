@@ -1,5 +1,3 @@
-"""SQLite persistence through one bounded actor; callers use a service worker."""
-
 from __future__ import annotations
 from concurrent.futures import Future
 from datetime import datetime, timezone
@@ -39,7 +37,7 @@ FORBIDDEN_KEYS = {
 
 
 class PersistenceError(RuntimeError):
-    """A recoverable write failure; contains no private event contents."""
+    pass
 
 
 def _json(value: Any) -> str:
@@ -163,7 +161,6 @@ class Store:
         return future.result(timeout=20)
 
     def diagnostics(self) -> dict:
-        """Scalar actor counters; does not execute SQL or reveal stored contents."""
         return {
             "actor_alive": self._thread.is_alive(),
             "queue_depth": self._queue.qsize(),
@@ -268,7 +265,6 @@ class Store:
                 f.end,
                 snapshot.session_id,
             )
-            # Keep references instead of a hidden fine-grained feature copy after retention.
             payload = snapshot.to_dict()
             payload.pop("feature")
             payload["feature_id"] = f.id
@@ -415,7 +411,6 @@ class Store:
             row = c.execute("SELECT * FROM state_feedback WHERE id=?", (feedback_id,)).fetchone()
             if not row:
                 raise ValueError("Feedback does not exist")
-            # Withdraw the complete episode, so older revisions cannot silently become active.
             c.execute(
                 "UPDATE state_feedback SET withdrawn=1,trainable=0 WHERE episode_id=?", (row["episode_id"],)
             )
@@ -514,7 +509,6 @@ class Store:
         )
 
     def _invalidate_models(self, conn, reason: str) -> None:
-        # Deletion affects all locally generated model artifacts, including old versions and backups.
         for path in self.model_dir.iterdir():
             if path.is_dir():
                 shutil.rmtree(path)
@@ -546,7 +540,6 @@ class Store:
             ).rowcount
             cutoff = at - feature_days * 86400
             features = c.execute("DELETE FROM features WHERE end<?", (cutoff,)).rowcount
-            # Remove minute-granularity predictions/curves too, rather than retaining disguised copies.
             c.execute(
                 "DELETE FROM events WHERE kind IN ('StateSnapshot','PredictionEvent','WorkloadEvent','WorkloadStep') AND end<?",
                 (cutoff,),
@@ -578,7 +571,6 @@ class Store:
             raise ValueError("Invalid deletion interval")
 
         def work(c):
-            # UTC may move backwards within an observed monotonic bucket.
             events = c.execute(
                 "DELETE FROM events WHERE MIN(start,end)<=? AND MAX(start,end)>=?", (end, start)
             ).rowcount
@@ -597,7 +589,6 @@ class Store:
         return result
 
     def _compact(self) -> None:
-        # SQLite free pages and WAL must not retain an application-managed copy after deletion.
         def work(c):
             c.commit()
             c.execute("PRAGMA wal_checkpoint(TRUNCATE)")

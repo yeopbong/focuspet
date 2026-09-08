@@ -1,4 +1,3 @@
-"""Generate isolated fictional labels and self-reports; no personal data is read."""
 import argparse
 import json
 from focuspet.learning.synthetic import write_examples

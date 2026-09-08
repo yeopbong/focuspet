@@ -1,5 +1,3 @@
-"""Replay orchestration calls the same domain engine and reminder policy as live use."""
-
 from __future__ import annotations
 
 import json
@@ -61,7 +59,6 @@ def replay_scenario(
         if snapshot:
             row = snapshot.to_dict()
             row["elapsed_s"] = elapsed
-            # Replay records policy decisions, but never delivers a historical notification.
             notification = policy.consider(snapshot, now=bucket.end, replay=True)
             row["notification"] = notification.to_dict() if notification else None
             snapshots.append(row)
@@ -101,7 +98,6 @@ def save_trajectory(trajectory: dict, output: str | Path):
 
 
 class ArchiveReplayError(ValueError):
-    """An actionable safe error code; messages contain no personal paths or event content."""
 
     def __init__(self, code: str, message: str):
         self.code = code
@@ -143,8 +139,6 @@ def _events(data: dict) -> list[dict]:
         if len({event["sequence"] for event in events}) != len(events):
             raise ArchiveReplayError("AMBIGUOUS_EVENT_ORDER", "Exported sequence numbers must be unique.")
         return sorted(events, key=lambda event: event["sequence"])
-    # Older v1 exports lacked ingestion order. Their existing order may support
-    # ordinary monotone histories, but must never pretend to resolve clock rollback.
     return list(events)
 
 
@@ -182,7 +176,6 @@ def _recorded_snapshots(data: dict, events: list[dict]) -> list[dict]:
         row["feature_available"] = row.get("feature_id") in feature_map
         if row["feature_available"]:
             row["feature"] = copy.deepcopy(feature_map[row["feature_id"]])
-        # Preserve original prediction IDs, versions and numerical values exactly.
         result.append(row)
     return result
 
@@ -287,12 +280,6 @@ def replay_export(
     model_dir: Path | None = None,
     parameter_dir: Path | None = None,
 ) -> dict:
-    """Replay an export without using later corrections as historical feature input.
-
-    Default: immutable recorded snapshots. Re-evaluation: the current Engine with
-    explicit selected versions. Strict history: actual historical artifacts and a
-    numerical cross-check against retained snapshots; unavailable context is an error.
-    """
     if data.get("schema") != "export-v1":
         raise ArchiveReplayError(
             "UNSUPPORTED_ARCHIVE_SCHEMA", "Historical archive replay requires export-v1."
@@ -403,9 +390,6 @@ def replay_export(
     )
     policy = ReminderManager(seed=seed)
     bucket_map = {bucket.id: bucket for bucket in buckets}
-    # The next emitted PredictionEvent records which model governed that emission.
-    # Version transitions are checked against saved components and workload below;
-    # an unrecorded mid-window transition cannot silently pass as exact reproduction.
     prediction_events = [(i, e["payload"]) for i, e in enumerate(events) if e["kind"] == "PredictionEvent"]
     snapshots = []
     observed = defaultdict(float)

@@ -1,5 +1,3 @@
-"""Bounded background application coordinator. The UI consumes cached dictionaries only."""
-
 from __future__ import annotations
 
 import copy
@@ -64,7 +62,6 @@ def data_root() -> Path:
 
 
 def _job_entry(kind, data, output, mode, cancel, results, automatic=False, profile="Mixed"):
-    # Spawned process: fitting/search never shares the UI process or collector callbacks.
     os.environ.setdefault("OMP_NUM_THREADS", "1")
     os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
     try:
@@ -86,7 +83,6 @@ def _job_entry(kind, data, output, mode, cancel, results, automatic=False, profi
 
 
 def safe_job_result(value):
-    """Keep useful job metrics while excluding private filesystem locations."""
     if isinstance(value, dict):
         return {
             key: safe_job_result(item)
@@ -171,14 +167,14 @@ class AppService:
 
     def close(self):
         if not self.command("close"):
-            self._stop.set()  # A saturated action queue cannot keep acquisition alive after exit.
+            self._stop.set()
         self._thread.join(8)
 
     def _emit(self, value):
         try:
             self._events.put_nowait(value)
         except queue.Full:
-            pass  # bounded UI notifications; never blocks collection
+            pass
 
     def _update(self, **values):
         with self._lock:
@@ -431,7 +427,6 @@ class AppService:
                 except Exception as error:
                     if self._diagnostics is not None:
                         self._diagnostics.errors["observation:" + type(error).__name__] += 1
-                    # A disk/collector failure is visible and pauses acquisition; the UI remains usable.
                     self.collector.pause(True)
                     self.engine.pause(True)
                     self._privacy_paused = True
@@ -565,8 +560,6 @@ class AppService:
         )
 
     def _query_candidates(self):
-        # Manual, audit and active feedback are all real answers; never spend an
-        # automatic request on an interval that already overlaps an active answer.
         seen = set()
         intervals = []
         for feedback in self._feedback:
@@ -795,7 +788,7 @@ class AppService:
         elif name == "interaction":
             if hasattr(self.collector, "suppress_interaction"):
                 self.collector.suppress_interaction()
-            return  # Input suppression never performs SQL reads or a history refresh.
+            return
         elif name == "consent":
             if self._timed_rest:
                 self._finish_declared_rest(resume=False)
@@ -1076,7 +1069,6 @@ class AppService:
             self._query = None
             self.policy = ReminderManager(timezone=self.settings.get("timezone", "UTC"))
             self.settings.pop("policy", None)
-            # Save only reset controls, not deleted data or stale runtime load.
             self.store.save_settings(self.settings)
             self._update(
                 state="Unknown",

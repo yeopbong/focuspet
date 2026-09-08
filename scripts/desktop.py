@@ -1,4 +1,3 @@
-"""Frozen application entry point."""
 import multiprocessing
 from focuspet.cli import main
 

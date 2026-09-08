@@ -1,4 +1,3 @@
-/* Playback only: classification and load values come from Python exports. */
 'use strict';
 const $ = id => document.getElementById(id), data = window.FOCUS_PET_DEMO;
 let scenario = Object.keys(data.scenarios)[0], branch = 'original', position = 0;

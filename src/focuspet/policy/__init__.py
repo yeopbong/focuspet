@@ -1,5 +1,3 @@
-"""Explainable, persistent interruption policy shared by every automatic overlay."""
-
 from __future__ import annotations
 from dataclasses import dataclass, asdict
 from datetime import datetime
@@ -44,7 +42,6 @@ class QueryCandidate:
 
 
 class ActiveQuerySelector:
-    """Reserve a reproducible random audit fraction; no unanswered-item labels."""
 
     def __init__(self, seed: int = 7, audit_fraction: float = 0.25):
         self.rng = random.Random(seed)
@@ -77,7 +74,6 @@ class ActiveQuerySelector:
                 "Random audit of a completed observable interval; hide the model guess until answered.",
             )
         else:
-            # Favor uncertainty and novelty relative to other recent candidate vectors.
             def utility(item):
                 feature, prediction = item
                 vector = feature.vector()
@@ -209,7 +205,6 @@ class ReminderManager:
         previous = self.previous_load
         self.previous_load = load
         for threshold in (100, 120):
-            # A fresh process at already-high load does not re-notify historical crossings.
             if previous is not None and previous < threshold <= load:
                 self.pending_threshold = threshold
                 self.pending_since = at
@@ -264,7 +259,6 @@ class ReminderManager:
             return None
         if self.snooze_until is not None and at < self.snooze_until or not self._budget(at, query=True):
             return None
-        # Candidate ID is persisted for idempotency, including audit requests.
         text = "How was the highlighted completed interval? You can skip this question."
         return self._emit(
             Notification(

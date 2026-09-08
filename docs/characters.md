@@ -26,6 +26,4 @@ The anchor is `(32, 77)`. Sprites render at integer scale 1–5 with nearest-nei
 
 Keep the manifest's frame dimensions, action names and valid frame indices when replacing a sheet. Each action should have distinct frames and a readable silhouette against light and dark desktops. Use transparent PNGs and check the native window mask after replacement.
 
-The included character assets are offered under **CC0-1.0 to the extent rights can be dedicated**, as recorded in each manifest. This does not assert exclusive copyright or authorship rights. Other artwork is not covered by this dedication. Third-party library licenses remain separate.
-
-Screenshots under `docs/screenshots/` show Focus Pet's own interface with demonstration data. They do not contain captured windows from other applications or personal activity records.
+The included character assets use **CC0-1.0 to the extent rights can be dedicated**, as recorded in each manifest. Replacement artwork retains its own license.

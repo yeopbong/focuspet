@@ -1,5 +1,3 @@
-"""Read-only platform checks. Does not request input permissions or inspect activity."""
-
 from __future__ import annotations
 import importlib.metadata
 import platform
@@ -29,8 +27,6 @@ def doctor() -> dict:
             importlib.import_module(module)
             imports[module] = {"status": "available"}
         except Exception as error:
-            # Dependency health is useful in frozen builds. Never expose exception
-            # paths, raw events, environment values, or arbitrary message contents.
             details = []
             current: BaseException | None = error
             seen = set()

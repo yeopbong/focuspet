@@ -1,5 +1,3 @@
-"""Explicit engineering rhythm index; no physiological claims."""
-
 from __future__ import annotations
 from dataclasses import dataclass
 from typing import Mapping
@@ -75,7 +73,6 @@ class Workload:
 
 
 class LoadBand:
-    """Display-only 5-point hysteresis; retains the unmodified continuous load."""
 
     def __init__(self):
         self.band = 0

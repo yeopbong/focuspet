@@ -1,5 +1,3 @@
-"""Collect installed distribution license notices, preserving their text."""
-
 from importlib.metadata import distributions
 from pathlib import Path
 
@@ -30,7 +28,7 @@ for dist in sorted(distributions(), key=lambda d: d.metadata["Name"].lower()):
         + " |"
     )
 text = (
-    "# Third-party components\n\nThe application source is MIT. Bundled components retain their own licenses. Runtime and development dependencies below reflect the measured environment. Qt/PySide includes LGPL/GPL/commercial licensing options; distribution must preserve applicable notices and allow the rights required by those licenses. Dynamic Qt libraries remain separate files in the bundle; source rebuild instructions are provided in the project. No claim of exclusive authorship is made for third-party code.\n\n| Component | Version | Declared license | Preserved notices |\n|---|---|---|---|\n"
+    "# Third-party components\n\nBundled components retain their own licenses. Qt library replacement and source build instructions are in [Qt notices](qt/README.md).\n\n| Component | Version | Declared license | Preserved notices |\n|---|---|---|---|\n"
     + "\n".join(rows)
     + "\n"
 )

@@ -1,5 +1,3 @@
-"""Package deterministic Python trajectories as a fully offline static demonstration."""
-
 from __future__ import annotations
 import json
 from importlib.resources import files
@@ -33,7 +31,6 @@ def export_demo(scenario, output, seed=7):
         target.mkdir(parents=True, exist_ok=True)
         for image in ("sprites.png", "thumbnail.png"):
             target.joinpath(image).write_bytes(folder.joinpath(image).read_bytes())
-    # Script data, not fetch(), makes opening index.html via file:// work offline.
     encoded = json.dumps(payload, ensure_ascii=True, separators=(",", ":"), allow_nan=False).replace(
         "</", "<\\/"
     )

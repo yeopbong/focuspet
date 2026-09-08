@@ -48,7 +48,6 @@ def prepare_inputs(folder, fixtures=None):
         from focuspet.features import FEATURE_NAMES
         from focuspet.learning.synthetic import load_dataset
 
-        # Deliberately separable integration fixture, not an accuracy experiment.
         records = []
         for day in range(6):
             for number in range(6):
@@ -75,7 +74,6 @@ def verify(prefix, root, native=False, native_seconds=8, fixtures=None, timeout=
                   "output": str(root / "evaluation")}
     write_json(inputs / "evaluate.json", evaluation)
     env = os.environ.copy()
-    # The fresh app-managed parent is always explicit, including commands without --data-dir.
     env["FOCUSPET_DATA_HOME"] = str(root / "managed")
     env.pop("FOCUSPET_DIAGNOSTICS_PATH", None)
     env.pop("PYTHONPATH", None)
@@ -164,7 +162,6 @@ def verify(prefix, root, native=False, native_seconds=8, fixtures=None, timeout=
         demo = json.loads(content.removeprefix("window.FOCUS_PET_DEMO = ").rstrip().removesuffix(";"))
         assert demo["scenarios"]["reading"]["original"]["snapshots"] == baseline["snapshots"]
         assert demo["scenarios"]["reading"]["corrected"]["correction"] is not None
-        # Inspect files exported by the executable under test, including frozen resources.
         import struct
         image_module: ModuleType | None = None
         try:
@@ -178,7 +175,7 @@ def verify(prefix, root, native=False, native_seconds=8, fixtures=None, timeout=
             header = sprite.read_bytes()[:29]
             assert header[:8] == b"\x89PNG\r\n\x1a\n"
             assert struct.unpack(">II", header[16:24]) == (256, 640)
-            assert header[24:26] == bytes([8, 6])  # Eight-bit RGBA PNG.
+            assert header[24:26] == bytes([8, 6])
             if image_module is not None:
                 with image_module.open(sprite) as image:
                     assert image.mode == "RGBA" and image.getchannel("A").getextrema() == (0, 255)

@@ -1,5 +1,3 @@
-"""Native application shell. Service commands are nonblocking queue writes."""
-
 from __future__ import annotations
 
 from pathlib import Path
@@ -18,7 +16,6 @@ from .widgets import button, label
 
 
 class PassiveBubble(QLabel):
-    """A temporary desktop hint that never activates or receives keyboard focus."""
 
     def __init__(self):
         super().__init__(None, Qt.WindowType.ToolTip | Qt.WindowType.FramelessWindowHint
@@ -274,7 +271,6 @@ class AppController(QObject):
 
 
 def run_app(mode="real", data_dir=None, service=None, scenario="workday", quit_after=None, screenshot=None):
-    """Launch the native desktop app; optional bounded smoke and own-window capture."""
     from focuspet.service import AppService
 
     app = cast(QApplication, QApplication.instance() or QApplication([]))

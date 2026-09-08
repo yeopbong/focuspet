@@ -1,5 +1,3 @@
-"""Privacy-limited immutable records shared by every runtime adapter."""
-
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field

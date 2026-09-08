@@ -1,5 +1,3 @@
-"""Coordinator regression checks. No native collector or GUI is started."""
-
 import copy
 from collections import deque
 from types import SimpleNamespace
@@ -19,7 +17,6 @@ def service(tmp_path, monkeypatch):
     monkeypatch.setattr(module, "DEFAULT_SETTINGS", copy.deepcopy(module.DEFAULT_SETTINGS))
     with Store(tmp_path, mode="test") as store:
         store.save_settings({"last_workload": 73.0, "last_seen": 1000.0})
-    # Invoke initialization synchronously to make state assertions deterministic.
     item = AppService.__new__(AppService)
     item.mode = "test"
     item.root = tmp_path

@@ -1,4 +1,3 @@
-"""Cancellable local candidate training. Validation never automatically activates a model."""
 from __future__ import annotations
 
 import hashlib
@@ -44,7 +43,6 @@ def priors(records: list[dict], names: list[str], profile: str = "Mixed") -> np.
 
 
 def metrics(records: list[dict], probabilities: np.ndarray, rejection_threshold: float = .45) -> dict:
-    """Report equal-episode weighted scores; absent classes are NA, never invented."""
     from sklearn.metrics import confusion_matrix, f1_score, log_loss, precision_recall_fscore_support
     y, w = targets(records), episode_weights(records)
     predicted = np.argmax(probabilities, axis=1)
@@ -117,7 +115,6 @@ def train_records(records: list[dict], output: str | Path, mode: str = "real", p
     fingerprint = hashlib.sha256(canonical(feedback_signature)).hexdigest()
     if automatic and not registry.auto_allowed(fingerprint, started):
         return {"status": "not-due", "reason": "Pending shadow candidate, daily limit, or no changed explicit feedback"}
-    # Reserve automatic attempts before training, including cancelled/failed attempts.
     if automatic:
         registry.mark_auto_attempt(fingerprint, started)
     check_cancel(cancel)
@@ -141,7 +138,6 @@ def train_records(records: list[dict], output: str | Path, mode: str = "real", p
         for alpha in (0, .25, .5, .75, 1):
             result = metrics(validation, (1 - alpha) * p_prior + alpha * p_personal)
             candidates.append({"kind": kind, "alpha": alpha, "metrics": result})
-    # Fixed decision rule: macro-F1 first, lower log loss tie-break, simpler LR tie-break.
     best = max(candidates, key=lambda r: (r["metrics"]["macro_f1"], -r["metrics"]["log_loss"],
                                         r["kind"] == "logistic", -r["alpha"]))
     check_cancel(cancel)

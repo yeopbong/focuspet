@@ -1,5 +1,3 @@
-"""Restrained cream and moss palette for clear native widgets."""
-
 BG = "#f8f8fc"
 INK = "#303959"
 MOSS = "#527a60"

@@ -1,4 +1,3 @@
-"""Run predeclared synthetic comparisons, saving exact inputs and outputs."""
 import argparse
 import json
 from focuspet.learning.evaluation import evaluate_config

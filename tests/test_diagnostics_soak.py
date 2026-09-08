@@ -1,5 +1,3 @@
-"""Deterministic harness regressions. Simulated time is never a longevity result."""
-
 import importlib.util
 import json
 import threading

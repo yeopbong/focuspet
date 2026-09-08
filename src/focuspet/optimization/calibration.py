@@ -1,4 +1,3 @@
-"""Optuna search over frozen state history, with independent self-report evidence."""
 from __future__ import annotations
 
 import hashlib
@@ -26,7 +25,6 @@ SEARCH_BUDGET = 64
 def clean_feedback(feedback: list[dict]) -> list[dict]:
     newest = {}
     for f in sorted(feedback, key=lambda x: x.get("labeled_at", x["at"])):
-        # Reports within one minute in the same work segment are one observation.
         identity = (str(f["session_id"]), int(float(f["at"]) // 60))
         newest[identity] = dict(f)
     return [f for f in sorted(newest.values(), key=lambda x: x["at"])
@@ -56,7 +54,6 @@ def calibration_status(feedback: list[dict]) -> dict:
 
 
 def replay_load(trajectory: list[dict], parameters: dict[str, float]) -> np.ndarray:
-    """Use the same domain dynamics as live processing; history is immutable input."""
     from focuspet.domain import Workload, WorkloadParameters
     initial = float(trajectory[0].get("initial_value", 0)) if trajectory else 0
     load = Workload(value=initial, parameters=WorkloadParameters(a_user=parameters["a_user"],
@@ -83,7 +80,6 @@ def objective_loss(trajectory: list[dict], feedback: list[dict], parameters: dic
             raise ValueError("Feedback must reference an already ended frozen trajectory step")
         z = (loads[index] - 100) / LINK_WIDTH
         y = 1.0 if f["answer"] == "Yes" else 0.0
-        # Stable BCE on logits avoids overflow in long work cycles.
         loss = float(np.logaddexp(0, z) - y * z)
         losses[str(f["session_id"])].append(loss)
     equal_segment_loss = float(np.mean([np.mean(v) for v in losses.values()]))
@@ -128,7 +124,6 @@ def search(trajectory: list[dict], feedback: list[dict], sampler_name: str, seed
     trials: list[dict[str, Any]] = []
     best = float("inf")
     start = time.perf_counter()
-    # ask/tell keeps cancellation explicit before every bounded objective evaluation.
     for _ in range(budget):
         if trace_path is not None and cancel is not None and cancel.is_set():
             atomic_json(trace_path, {"status": "cancelled", "sampler": sampler_name, "seed": seed,
@@ -207,7 +202,6 @@ class ParameterRegistry:
     def add_candidate(self, parameters: dict, report: dict, now: float):
         version = "parameters-" + uuid.uuid4().hex[:12]
         current = self.current()
-        # Maximum absolute change per activation: 0.1 growth, 3 minutes recovery.
         limited = {"a_user": max(current["a_user"] - .1, min(current["a_user"] + .1, parameters["a_user"])),
                    "tau_user": max(current["tau_user"] - 3, min(current["tau_user"] + 3, parameters["tau_user"]))}
         self.state["versions"][version] = {"parameters": limited, "searched_parameters": parameters,
@@ -239,7 +233,6 @@ class ParameterRegistry:
         evidence = [f for f in clean_feedback(available) if f.get("mode", self.mode) == self.mode
                     and f["at"] > record["created_at"] + 300 and f["at"] <= now
                     and str(f.get("id")) not in used]
-        # Fixed evidence gate chosen before seeing subsequent outcomes.
         if len(evidence) < 10 or len({utc_day(f["at"]) for f in evidence}) < 2 \
                 or any(sum(f["answer"] == a for f in evidence) < 3 for a in ("Yes", "No")):
             return {"status": "collecting-shadow-evidence", "reports": len(evidence)}
@@ -280,7 +273,6 @@ def calibrate_records(trajectory: list[dict], feedback: list[dict], output: str 
             or len({f["answer"] for f in validation}) < 2:
         return {"status": "insufficient-validation", "fitting": calibration_status(fitting),
                 "validation_reports": len(validation)}
-    # Tau identifiability comes only from the fitting partition, never future feedback.
     learn_tau = calibration_status(fitting)["learn_tau"]
     output = Path(output)
     output.mkdir(parents=True, exist_ok=True)
@@ -290,7 +282,6 @@ def calibrate_records(trajectory: list[dict], feedback: list[dict], output: str 
                for sampler in ("random", "tpe")]
     for result in results:
         result["validation_loss"] = objective_loss(trajectory, validation, result["parameters"])
-    # Choose sampler on fit loss. Time-out validation is used once as a gate.
     selected = min(results, key=lambda r: r["fit_loss"])
     report = {"mode": mode, "data_source": "synthetic simulation" if mode == "synthetic-demo" else "explicit local self-report",
               "feedback_ids": [str(f.get("id")) for f in clean], "fitting": calibration_status(fitting),
@@ -320,12 +311,6 @@ def calibrate_file(path: str | Path, output: str | Path, mode: str = "synthetic-
 
 
 def dataset_from_events(events: list[dict], mode: str = "real") -> dict:
-    """Adapt disjoint workload steps and explicit self-reports; summaries are excluded.
-
-    The first retained step's recorded initial_value fixes the initial condition.
-    Rest pairing is inferred from adjacent reports; answers are never inferred.
-    """
-    # Wall time can move backwards. Persisted insertion sequence is the causal order.
     if any("sequence" in event for event in events):
         sequence = [event.get("sequence") for event in events]
         if not all(isinstance(value, int) for value in sequence) or len(set(sequence)) != len(sequence):

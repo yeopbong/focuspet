@@ -77,7 +77,6 @@ CHECKS = (
 def atomic_json(destination, value):
     destination = Path(destination)
     destination.parent.mkdir(parents=True, exist_ok=True)
-    # A unique sibling avoids collisions with another inspector using the same name.
     temporary = None
     try:
         with tempfile.NamedTemporaryFile(
@@ -100,7 +99,6 @@ def atomic_json(destination, value):
 
 
 def error_details(error, operation):
-    """Keep actionable API/errno/stack locations without private paths or exception payloads."""
     return {
         "operation": operation,
         "type": type(error).__name__,
@@ -180,7 +178,6 @@ def database_sizes(path):
 
 
 class ProcessSampler:
-    """One process identity and descendants; CPU uses nonblocking deltas."""
 
     def __init__(self, pid, process_factory=psutil.Process):
         self.main = process_factory(pid)
@@ -215,7 +212,7 @@ class ProcessSampler:
                 for key in ("read_count", "write_count", "read_bytes", "write_bytes")
             }
         except (AttributeError, NotImplementedError):
-            io_counts = None  # macOS does not expose this psutil capability.
+            io_counts = None
         except (OSError, psutil.Error) as error:
             errors.append(error_details(error, "process.io_counters"))
             io_counts = None
@@ -391,11 +388,11 @@ def monitor(
         entry = {"elapsed_s": monotonic() - started, **detail}
         report["error_count"] += 1
         report["errors"].append(entry)
-        report["errors"] = report["errors"][-100:]  # Samples retain each per-field missing observation.
+        report["errors"] = report["errors"][-100:]
         try:
             print(json.dumps({"event": "monitor-error", **entry}), file=error_stream, flush=True)
         except OSError:
-            pass  # A closed console must not stop file-backed monitoring.
+            pass
 
     def persist():
         nonlocal consecutive_writes_failed

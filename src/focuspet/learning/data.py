@@ -1,4 +1,3 @@
-"""Latest explicit feedback, episode weights, and purged chronological partitions."""
 from __future__ import annotations
 
 from collections import Counter, defaultdict
@@ -16,11 +15,6 @@ def utc_day(timestamp: float) -> str:
 
 
 def latest_records(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Revision is episode-wide; withdrawn or ambiguous newest labels remove all children.
-
-    Overlapping separately submitted targets are connected into one independent episode.
-    A feature cannot inherit two conflicting labels: newest annotation wins.
-    """
     revisions: dict[str, tuple[float, int]] = {}
     for r in records:
         ep = str(r["episode_id"])
@@ -39,7 +33,6 @@ def latest_records(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
         feature_key = str(r.get("feature_id", f"{r['session_id']}:{r['start']}:{r['end']}"))
         by_feature[feature_key] = r
     result = sorted(by_feature.values(), key=lambda r: (float(r["start"]), float(r["end"])))
-    # Merge overlapping *feedback target* intervals, not overlapping causal lookbacks.
     episode_ranges: dict[str, tuple[float, float]] = {}
     for r in result:
         ep = str(r["episode_id"])
@@ -85,11 +78,6 @@ def status_records(records: list[dict[str, Any]]) -> dict[str, Any]:
 
 def chronological_split(records: list[dict[str, Any]], fraction: float = .75,
                         purge_s: float = PURGE_SECONDS) -> tuple[list[dict], list[dict]]:
-    """Whole UTC days and episodes, train first; purge longest causal lookback.
-
-    start/end identify the entire feature support. A whole episode crossing either
-    side of the split boundary is excluded, including any child windows.
-    """
     if purge_s < PURGE_SECONDS:
         raise ValueError("Purge must be at least the 300 second feature lookback")
     days = sorted({utc_day(float(r["end"])) for r in records})

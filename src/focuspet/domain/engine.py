@@ -1,5 +1,3 @@
-"""One causal pipeline reused for native collection, testing, and replay."""
-
 from __future__ import annotations
 from dataclasses import replace
 from hashlib import sha256
@@ -183,7 +181,6 @@ class Engine:
         if self._last_interval and self._last_session == bucket.session_id:
             previous_end = self._last_interval[1]
             if bucket.start < previous_end - 1e-6:
-                # Any overlap or wall-clock rollback is an explicit gap, never negative elapsed work.
                 clock_discontinuity = True
             elif bucket.start - previous_end > 30:
                 self.workload.stale = True
@@ -223,7 +220,6 @@ class Engine:
         value_before = self.workload.value
         rest_seconds = 0.0
         if self.rest_until is not None and self.rest_started is not None and not self.paused:
-            # Clamp both to declaration UTC bounds and remaining fresh elapsed duration.
             overlap = max(0.0, min(bucket.end, self.rest_until) - max(bucket.start, self.rest_started))
             rest_seconds = min(bucket.duration_s, overlap, self._rest_remaining_s)
             self._rest_remaining_s -= rest_seconds
@@ -242,7 +238,6 @@ class Engine:
                 reason=["A timed rest was explicitly started."],
                 feature_id=feature.id,
             )
-            # Unobserved remainder beyond a declared rest is not recovery.
             if rest_seconds < bucket.duration_s and not valid_observation:
                 self.workload.stale = True
         elif self._declared and bucket.end <= self._declared[1] and valid_observation:
@@ -270,7 +265,6 @@ class Engine:
                     reason=[bucket.missing_reason or "The current activity cannot be observed."],
                     feature_id=feature.id,
                 )
-            # Apply only this bucket's available coverage, never the overlapping feature duration.
             current_coverages = [
                 bucket.coverage.get(k, 1 if getattr(bucket, k) is not None else 0)
                 for k in ("keyboard", "clicks", "scroll", "pointer")

@@ -1,4 +1,3 @@
-"""Integration tests use isolated synthetic/test stores, never native input hooks."""
 import time
 
 from focuspet.service import AppService

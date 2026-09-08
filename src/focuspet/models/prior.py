@@ -1,5 +1,3 @@
-"""Versioned hand-written weak evidence; deliberately not population-trained."""
-
 from __future__ import annotations
 import math
 from dataclasses import dataclass
@@ -10,7 +8,6 @@ PROFILES = ("Coding", "Research / Reading", "Office / Writing", "Creative", "Mix
 
 @dataclass(frozen=True)
 class PriorConfig:
-    """Auditable engineering defaults; callers may supply a separately versioned configuration."""
 
     version: str = "generic-prior-v1"
     minimum_coverage: float = 0.45
@@ -33,7 +30,6 @@ class GenericPrior:
 
     def predict(self, window: FeatureWindow) -> Prediction:
         v = window.values
-        # Each signal adds weak evidence. Application categories never determine a label.
         scores = [0.05, 0.55, -0.15]
         reasons = []
         if (
@@ -75,7 +71,6 @@ class GenericPrior:
         exp = [math.exp(s) for s in scores]
         components = {k: e / sum(exp) for k, e in zip(WORK_STATES, exp)}
         entropy = -sum(p * math.log(p) for p in components.values()) / math.log(3)
-        # No-input and category alone cannot establish task engagement.
         ambiguous = (
             active < 0.08 or (bursts > 3) or max(components.values()) < self.config.rejection_component
         )

@@ -1,4 +1,3 @@
-"""Explicitly synthetic latent-task simulations, never a real-mode pretrained model."""
 from __future__ import annotations
 
 import math
@@ -13,12 +12,11 @@ from focuspet.learning.data import CLASSES
 from focuspet.models import GenericPrior
 from focuspet.models.personal import atomic_json
 
-EPOCH = 1735722000.0  # 2025-01-01 09:00 UTC, fictional dates reserved for simulation.
+EPOCH = 1735722000.0
 
 
 def work_dataset(seed: int = 7, days: int = 60, episodes_per_day: int = 6) -> dict:
     rng = np.random.default_rng(seed)
-    # Individual emission style varies independently of the rule prior.
     speed = rng.lognormal(0, .22)
     switch_style = rng.uniform(.5, 1.7)
     tasks = ["coding", "reading", "writing", "design", "browser", "video"]
@@ -32,24 +30,20 @@ def work_dataset(seed: int = 7, days: int = 60, episodes_per_day: int = 6) -> di
         for number in range(episodes_per_day):
             episode = f"s{seed}-d{day}-e{number}"
             task = tasks[int(rng.integers(len(tasks)))]
-            # Task intent/engagement drives truth; prior scores are never used to create labels.
             latent = int(rng.choice(3, p=[.38, .37, .25]))
             intentionality = rng.beta([8, 4, 2][latent], [2, 4, 8][latent])
             label = CLASSES[latent]
-            # Two daily query opportunities, each with three ended six-minute episodes.
             start = EPOCH + day * 86400 + (number // 3) * 14400 + (number % 3) * 420
             builder = FeatureBuilder()
             key, click, scroll, pointer, activity, category = emissions[task]
-            # Entirely unseen automation/changed switching style appears only in final 8 days.
             out_of_distribution = day >= days - 8 and rng.random() < .3
             extra_switch = (1 - intentionality) * rng.uniform(0, 2.5) * switch_style
             rhythm = rng.lognormal(0, .28)
             if day >= days // 2:
-                rhythm *= 1.15  # Mild personal habit drift.
+                rhythm *= 1.15
             descriptions[episode] = {"latent_task": task, "latent_engagement": intentionality,
                                      "ood": out_of_distribution, "expected": "Signals can be ambiguous"}
             for i in range(36):
-                # Correlated episode noise and count noise create overlapping-window dependence.
                 bump = 1 + .6 * math.sin(i * .45 + number)
                 if latent == 2:
                     bump *= rng.lognormal(0, .65)
@@ -92,7 +86,6 @@ def load_dataset(seed: int = 7, days: int = 12) -> dict:
             start = EPOCH + day * 86400 + segment * 15000
             rest_id = session + "-rest"
             actual = Workload(parameters=WorkloadParameters(a_user=hidden["a_user"], tau_user=hidden["tau_user"]))
-            # State components are frozen observations, independent of wants-rest labels.
             components = dict(zip(CLASSES, map(float, rng.dirichlet([6, 2, 1]))))
             for minute in range(190):
                 rest = 125 <= minute < 145
@@ -102,7 +95,6 @@ def load_dataset(seed: int = 7, days: int = 12) -> dict:
                 actual.advance(60, components=components, rest=rest)
                 trajectory.append(step)
                 if minute in (24, 69, 124, 144, 189):
-                    # Genuine stochastic self-report simulation, including noise and final-day shift.
                     link = 1 / (1 + math.exp(-(actual.value - 100 + (8 if day >= days-2 else 0)) / 20))
                     answer = "Yes" if rng.random() < .94 * link + .03 else "No"
                     phase = "before" if minute == 124 else "after" if minute == 144 else None

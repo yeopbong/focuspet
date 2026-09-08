@@ -1,5 +1,3 @@
-"""Transparent native sprite window with input-safe desktop interactions."""
-
 from __future__ import annotations
 
 from typing import cast
@@ -12,7 +10,6 @@ from .assets import SpriteAtlas
 
 
 def clamp_position(position: QPoint, size, screens: list[QRect]) -> QPoint:
-    """Keep the whole sprite on one available screen, including after unplugging."""
     if not screens:
         return position
     frame = QRect(position, size)
@@ -151,8 +148,6 @@ class PetWidget(QWidget):
             self._scaled_frames[key] = (pixmap, QRegion(pixmap.mask()))
         self._pixmap, mask = self._scaled_frames[key]
         self.setFixedSize(self._pixmap.size())
-        # A native alpha mask excludes transparent space from the input region.
-        # Full input transparency additionally uses the OS window input flag.
         self.setMask(mask)
         self.update()
 
@@ -188,8 +183,6 @@ class PetWidget(QWidget):
     def mouseReleaseEvent(self, event: QMouseEvent):
         if event.button() != Qt.MouseButton.LeftButton:
             return
-        # A compositor may compress motion events; release displacement still
-        # makes this a drag and must never become a click.
         delta = event.globalPosition().toPoint() - self._press_global
         if self._pressed and delta.manhattanLength() >= QApplication.startDragDistance():
             self._dragging = True

@@ -1,5 +1,3 @@
-"""Focus Pet command line. No HTTP server, network client, or content collection."""
-
 from __future__ import annotations
 import argparse
 import json
@@ -217,7 +215,6 @@ def main(argv=None):
         print("Cancelled; active versions retained.", file=sys.stderr)
         return 130
     except (OSError, ValueError, KeyError, ImportError, RuntimeError) as error:
-        # No native events or private application identifiers in error output.
         from focuspet.replay import ArchiveReplayError
 
         if isinstance(error, ArchiveReplayError):

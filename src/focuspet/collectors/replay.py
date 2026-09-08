@@ -1,5 +1,3 @@
-"""Deterministic synthetic bucket generator and collector; no platform imports."""
-
 from __future__ import annotations
 
 import json
@@ -28,7 +26,6 @@ SCENARIOS = {
     "contradictory-feedback": "Same observations with incompatible labels supplied separately as feedback revisions.",
 }
 
-# Each segment uses an explicit latent task, independent of inference rules.
 _SEGMENTS = {
     "coding": [("code", 80)],
     "reading": [("read", 35)],
@@ -62,7 +59,7 @@ def make_scenario(name="workday", seed=7) -> dict:
     if name not in SCENARIOS:
         raise ValueError("Unknown scenario. Choose: " + ", ".join(SCENARIOS))
     rng = random.Random(seed)
-    start = 1788220800.0  # 2026-09-01 UTC, explicitly synthetic fixed epoch
+    start = 1788220800.0
     t = start
     buckets = []
     declarations = []
@@ -122,7 +119,6 @@ def make_scenario(name="workday", seed=7) -> dict:
                 observation = "No-input"
             if task == "no-app":
                 cov["application"] = 0.0
-            # Explicit rollback affects UTC only; durations stay monotonic/valid.
             if task == "rollback" and j == 0:
                 t -= 120
             bucket = ActivityBucket(

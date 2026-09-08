@@ -1,5 +1,3 @@
-"""Simulated adapter contracts; these tests never observe real desktop activity."""
-
 import json
 import math
 import os
@@ -214,7 +212,7 @@ def test_permission_denied_is_missing_and_revoke_stops_reading_input(native):
     assert denied.keyboard is None and denied.idle_s is None
     assert denied.coverage["keyboard"] == 0 and denied.observation == "Missing"
     q.granted = True
-    c.start()  # Explicit service restart, not an automatic permission retry.
+    c.start()
     q.callback(None, q.kCGEventKeyDown, Event(), None)
     q.granted = False
     clock.advance(1)
@@ -313,7 +311,7 @@ def test_replay_determinism_pause_mode_and_same_core():
     assert scenario == make_scenario("permission-loss", seed=12)
     replay = ReplayCollector(scenario)
     assert replay.sample() is None
-    replay.start(request_permission=True)  # Replay still uses no native APIs.
+    replay.start(request_permission=True)
     first = replay.sample()
     assert first.mode == "synthetic-demo"
     replay.pause()
@@ -370,7 +368,7 @@ def test_normal_sampling_frequency_does_not_advance_time_artificially(native):
     c, q, w, clock, _ = native
     c.start()
     for _ in range(500):
-        assert c.sample() is None  # Repeated polls do not create elapsed time.
+        assert c.sample() is None
     for _ in range(199):
         clock.advance(0.05)
         assert c.sample() is None
@@ -387,13 +385,13 @@ def test_silent_tap_failure_is_missing_until_explicit_restart(native):
     c, q, w, clock, _ = native
     c.start()
     assert sample_seconds(c, clock).keyboard == 0
-    q.enabled = False  # No disabled callback is delivered.
+    q.enabled = False
     failed = sample_seconds(c, clock)
     assert failed.observation == "Missing"
     assert failed.keyboard is None and failed.coverage["keyboard"] == 0
     assert not c.diagnostics()["tap_healthy"]
     assert c.diagnostics()["health_failures"] == 1
-    q.enabled = True  # Permission or external re-enable alone is not recovery.
+    q.enabled = True
     assert sample_seconds(c, clock).keyboard is None
     c.start()
     assert sample_seconds(c, clock).keyboard == 0

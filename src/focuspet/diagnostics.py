@@ -1,5 +1,3 @@
-"""Opt-in, local scalar diagnostics for wall-clock validation; no activity payloads."""
-
 from __future__ import annotations
 
 import json
@@ -71,7 +69,6 @@ class Diagnostics:
         self.last_write = now
         collector = getattr(service, "collector", None)
         store = getattr(service, "store", None)
-        # Cache inspection only: no permission requests, desktop reads, database queries or payloads.
         record = {
             "schema": "local-diagnostics-v1",
             "pid": os.getpid(),
@@ -116,4 +113,4 @@ class Diagnostics:
             temporary.write_text(json.dumps(record, sort_keys=True, allow_nan=False), encoding="utf-8")
             temporary.replace(self.destination)
         except OSError:
-            self.write_errors += 1  # Diagnostics must never interrupt observation or controls.
+            self.write_errors += 1

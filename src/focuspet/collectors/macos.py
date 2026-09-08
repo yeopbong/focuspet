@@ -1,5 +1,3 @@
-"""macOS listen-only event counts. Never inspect keys, text, titles or coordinates."""
-
 from __future__ import annotations
 
 import math
@@ -39,7 +37,6 @@ _OBSERVER_CLASS = None
 
 
 def _get_observer_class(base):
-    # Objective-C class names must be unique for the lifetime of the process.
     global _OBSERVER_CLASS
     if _OBSERVER_CLASS is None:
 
@@ -76,7 +73,6 @@ def _get_observer_class(base):
 
 
 class AggregateCounter:
-    """Thread-safe scalar-only accumulator; raw event objects never enter it."""
 
     def __init__(self):
         self.lock = threading.Lock()
@@ -144,7 +140,6 @@ class NativeCollector:
         self._gap = False
 
     def capabilities(self):
-        # Permission preflight is read-only; it never requests access or installs a tap.
         try:
             if self._q is None:
                 import Quartz as q
@@ -164,7 +159,6 @@ class NativeCollector:
         return self._caps.copy()
 
     def diagnostics(self):
-        """Cached scalar health only; inspection never polls the desktop."""
         return {
             "started": self._started,
             "paused": self._paused,
@@ -192,7 +186,6 @@ class NativeCollector:
         return healthy
 
     def _install_observers(self):
-        # Notification callbacks keep only booleans. No userInfo is inspected.
         try:
             import AppKit
             import Foundation
@@ -215,7 +208,6 @@ class NativeCollector:
                 self._observer, b"didUnlock:", "com.apple.screenIsUnlocked", None
             )
             self._caps["sleep"] = "granted"
-            # Best-effort notifications: starting while already locked has no reliable public initial query.
             self._caps["lock"] = "supported"
         except Exception:
             self._remove_observers()
@@ -277,7 +269,6 @@ class NativeCollector:
         mask = sum(1 << int(t) for t in event_types)
 
         def callback(proxy, event_type, event, refcon):
-            # Do not log event or read keycode/unicode/location/user data.
             if event_type in (q.kCGEventTapDisabledByTimeout, q.kCGEventTapDisabledByUserInput):
                 self._tap_healthy = False
                 for key in ("keyboard", "clicks", "scroll", "pointer", "idle"):
@@ -326,7 +317,7 @@ class NativeCollector:
     def suppress_interaction(self, seconds=2.0):
         self._suppressed_until = self._mono() + seconds
         self.counter.clear()
-        self._gap = True  # first global click may precede Qt's mouse handler: exclude entire bucket
+        self._gap = True
 
     def pause(self, paused=True):
         self._paused = paused
@@ -352,7 +343,6 @@ class NativeCollector:
                 finally:
                     self._q.CFMachPortInvalidate(self._tap)
         except Exception:
-            # A failed native teardown must still discard counters and detach observers.
             for key in ("keyboard", "clicks", "scroll", "pointer", "idle"):
                 self._caps[key] = "error"
         finally:
@@ -362,7 +352,7 @@ class NativeCollector:
 
     def sample(self):
         if not self._started or self._paused:
-            return None  # privacy pause performs no reads
+            return None
         q = self._q
         try:
             q.CFRunLoopRunInMode(q.kCFRunLoopDefaultMode, 0.001, False)
@@ -406,13 +396,12 @@ class NativeCollector:
                     self._app_coverage += elapsed
                     if self._previous_app is not None and self._previous_app != identifier:
                         self._switches += 1
-                    self._previous_app = identifier  # in memory only; never persisted or logged
+                    self._previous_app = identifier
                     self._caps["application"] = "granted"
                 else:
                     self._caps["application"] = "unavailable" if app is None else "granted"
             except Exception:
                 self._caps["application"] = "error"
-                # Identity is unknown, so own-window exclusion cannot be assured.
                 self._own_app = True
                 self.counter.clear()
                 self._gap = True

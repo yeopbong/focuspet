@@ -1,5 +1,3 @@
-"""Small native painted history views. All supplied values remain factual."""
-
 from __future__ import annotations
 
 from datetime import datetime
@@ -142,7 +140,6 @@ class Timeline(QWidget):
 
 
 class RhythmPlot(QWidget):
-    """Two independent scales, real elapsed-time x positions, explicit data gaps."""
 
     def __init__(self):
         super().__init__()
@@ -180,7 +177,6 @@ class RhythmPlot(QWidget):
             value = max_load - (max_load + 10) * i / 4
             p.drawText(QRectF(area.right() + 6, area.top() + area.height() * i / 4 - 8, 42, 16),
                        Qt.AlignmentFlag.AlignLeft, str(round(value)))
-        # The 100 Work Load reference is distinct from the left Focus scale.
         ref_y = area.bottom() - 110 / (max_load + 10) * area.height()
         p.setPen(QPen(QColor("#d0b58c"), 1, Qt.PenStyle.DashLine))
         p.drawLine(int(area.left()), int(ref_y), int(area.right()), int(ref_y))

@@ -1,4 +1,3 @@
-"""Local candidate/shadow/active lifecycle with atomic pointer changes and fallback."""
 from __future__ import annotations
 
 import json
@@ -68,7 +67,6 @@ class ModelRegistry:
         if version not in self.state["versions"]:
             raise ValueError("Unregistered model")
         payload = load_artifact(self.artifact_path(version), names, self.mode)
-        # A checksum in the numeric envelope and in the registry detects accidental alteration.
         import hashlib
         from focuspet.models.personal import canonical
         if hashlib.sha256(canonical(payload)).hexdigest() != self.state["versions"][version]["sha256"]:
@@ -154,7 +152,6 @@ class ModelRegistry:
         assessment = {"support": s, "prior": base, "current": current, "candidate": proposed,
                       "at": now, "episode_ids": sorted({r["episode_id"] for r in evidence})}
         self.state["versions"][version]["shadow_assessment"] = assessment
-        # One predeclared review per candidate; failed evidence cannot be repeatedly resampled.
         self.state["candidate"] = None
         if passed:
             if self.state.get("active"):
@@ -167,7 +164,6 @@ class ModelRegistry:
         return {"status": "activated" if passed else "retained-prior-or-current", "assessment": assessment}
 
     def assess_active(self, records: list[dict], now: float | None = None, profile: str = "Mixed") -> dict:
-        """New independent audits can roll back a material post-activation regression."""
         from focuspet.learning.training import metrics, priors
         active = self.active_numeric()
         if active is None:

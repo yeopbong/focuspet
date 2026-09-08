@@ -1,5 +1,3 @@
-"""Native onboarding, corrections, status, settings and history windows."""
-
 from __future__ import annotations
 
 import re
@@ -159,7 +157,6 @@ class FeedbackDialog(QDialog):
         if revision:
             self.labels.setCurrentText(revision.get("label", "Not sure"))
         else:
-            # Do not silently preselect the system's estimate.
             self.labels.setCurrentText("Not sure")
         layout.addWidget(self.labels)
         layout.addWidget(label(tr("feedback_note"), "subtitle", True))
@@ -332,7 +329,6 @@ class StatusCard(QDialog):
         query = snapshot.get("query")
         self._query_id = query.get("id") if query else None
         self.query_card.setVisible(bool(query))
-        # Blind all selected check-ins until an answer/skip; avoids accidental audit leakage.
         self.estimate.setVisible(not bool(query))
         if query:
             self.query_period.setText(f"{time_text(query.get('target_start'))} – {time_text(query.get('target_end'))}")
@@ -473,7 +469,6 @@ class Dashboard(QDialog):
     def refresh(self, snapshot):
         self.badge.setText(tr("demo_badge" if snapshot.get("mode") == "synthetic-demo" else "local"))
         history = snapshot.get("history", [])
-        # Synthetic scenarios have their own declared date; show that day, not pretend it is real today.
         today = datetime.now().astimezone().date()
         if snapshot.get("mode") == "synthetic-demo" and history:
             today = datetime.fromtimestamp(history[-1]["end"]).astimezone().date()

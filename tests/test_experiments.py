@@ -10,7 +10,6 @@ from focuspet.learning.synthetic import work_dataset
 
 def test_latent_simulation_reproducible_distinct_labels_and_prior():
     a, b = work_dataset(seed=3, days=3), work_dataset(seed=3, days=3)
-    # Generated feature ids from domain are replaced with deterministic identifiers.
     assert a == b
     assert {r["label"] for r in a["records"]} == {"Focused", "Normal", "Distracted"}
     assert any(max(r["prior"], key=r["prior"].get) != r["label"] for r in a["records"])
