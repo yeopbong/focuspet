@@ -1,0 +1,151 @@
+{
+  "id": "sol",
+  "name": "Sol",
+  "tagline": "Space for a creative rhythm",
+  "adult": true,
+  "sheet": "sprites.png",
+  "columns": 4,
+  "frame_size": [
+    64,
+    80
+  ],
+  "anchor": [
+    32,
+    77
+  ],
+  "hit_region": {
+    "type": "alpha",
+    "threshold": 1,
+    "bounds": [
+      3,
+      3,
+      61,
+      79
+    ]
+  },
+  "thumbnail": "thumbnail.png",
+  "source": "Original Focus Pet character artwork. High-resolution source retained as source.png.",
+  "license": "CC0-1.0, to the extent rights can be dedicated.",
+  "actions": {
+    "idle": {
+      "frames": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "durations_ms": [
+        650,
+        250,
+        650,
+        450
+      ],
+      "loop": true
+    },
+    "focus": {
+      "frames": [
+        4,
+        5,
+        6,
+        7
+      ],
+      "durations_ms": [
+        400,
+        350,
+        400,
+        350
+      ],
+      "loop": true
+    },
+    "normal": {
+      "frames": [
+        8,
+        9,
+        10,
+        11
+      ],
+      "durations_ms": [
+        400,
+        350,
+        400,
+        350
+      ],
+      "loop": true
+    },
+    "distracted": {
+      "frames": [
+        12,
+        13,
+        14,
+        15
+      ],
+      "durations_ms": [
+        400,
+        350,
+        400,
+        350
+      ],
+      "loop": true
+    },
+    "stretch": {
+      "frames": [
+        16,
+        17,
+        18,
+        19
+      ],
+      "durations_ms": [
+        400,
+        350,
+        400,
+        350
+      ],
+      "loop": true
+    },
+    "rest": {
+      "frames": [
+        20,
+        21,
+        22,
+        23
+      ],
+      "durations_ms": [
+        400,
+        350,
+        400,
+        350
+      ],
+      "loop": true
+    },
+    "recovered": {
+      "frames": [
+        24,
+        25,
+        26,
+        27
+      ],
+      "durations_ms": [
+        400,
+        350,
+        400,
+        350
+      ],
+      "loop": false
+    },
+    "unknown": {
+      "frames": [
+        28,
+        29,
+        30,
+        31
+      ],
+      "durations_ms": [
+        650,
+        250,
+        650,
+        450
+      ],
+      "loop": true
+    }
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "seeds": [7, 17, 27, 37, 47],
+  "label_budgets": [30, 60, 90],
+  "search_budget": 64,
+  "output": "experiments/results"
+}

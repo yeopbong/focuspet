@@ -1,0 +1,131 @@
+name: Checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  core-and-package:
+    name: Core, headless Qt, models and wheel
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      QT_QPA_PLATFORM: offscreen
+      OMP_NUM_THREADS: '1'
+      OPENBLAS_NUM_THREADS: '1'
+      MKL_NUM_THREADS: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11.9'
+          cache: pip
+          cache-dependency-path: .github/requirements-ci.lock
+      - name: Install locked dependencies
+        run: |
+          python -m pip install -r .github/requirements-ci.lock
+          python -m pip install --no-deps --no-build-isolation -e .
+      - name: Lint and type checks
+        run: |
+          python -m ruff check src tests scripts .github/scripts
+          python -m mypy src
+      - name: Core, learning and headless UI tests
+        run: python -m pytest tests --ignore=tests/browser -q --junitxml=.runtime/ci-tests.xml
+      - name: Build and install the wheel
+        run: |
+          python -m build --no-isolation
+          python -m pip install --force-reinstall --no-deps dist/*.whl
+      - name: Installed package and synthetic CLI smoke
+        working-directory: ${{ runner.temp }}
+        run: |
+          python "$GITHUB_WORKSPACE/.github/scripts/ci_smoke.py" --output "$RUNNER_TEMP/package-smoke"
+          python -m focuspet.cli doctor
+          python -m focuspet.cli demo --data-dir "$RUNNER_TEMP/desktop-smoke" --quit-after 4
+      - name: Upload test evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: core-and-package-results
+          path: |
+            .runtime/ci-tests.xml
+            ${{ runner.temp }}/package-smoke/summary.json
+          if-no-files-found: error
+          retention-days: 14
+
+  native-ui:
+    name: macOS Qt with isolated synthetic data
+    runs-on: macos-14
+    timeout-minutes: 20
+    env:
+      OMP_NUM_THREADS: '1'
+      OPENBLAS_NUM_THREADS: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11.9'
+          cache: pip
+          cache-dependency-path: .github/requirements-ci.lock
+      - name: Install locked dependencies
+        run: |
+          python -m pip install -r .github/requirements-ci.lock
+          python -m pip install --no-deps --no-build-isolation -e .
+      - name: Native widget behavior without system collection consent
+        run: python -m pytest tests/test_ui.py -q --junitxml=.runtime/macos-ui.xml
+      - name: Upload native UI result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-ui-results
+          path: .runtime/macos-ui.xml
+          if-no-files-found: error
+          retention-days: 14
+
+  browser:
+    name: Exported demo over HTTP
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      FOCUSPET_BROWSER_TESTS: '1'
+      FOCUSPET_BROWSER_ARTIFACTS: .runtime/browser-results
+      OMP_NUM_THREADS: '1'
+      OPENBLAS_NUM_THREADS: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11.9'
+          cache: pip
+          cache-dependency-path: .github/requirements-ci.lock
+      - name: Install locked dependencies
+        run: |
+          python -m pip install -r .github/requirements-ci.lock
+          python -m pip install --no-deps --no-build-isolation -e .
+          python -m playwright install --with-deps chromium
+      - name: Verify generated demo, project subpath and browser controls
+        run: python -m pytest tests/browser -q --junitxml=.runtime/browser-tests.xml
+      - name: Upload HTTP browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: http-browser-results
+          path: |
+            .runtime/browser-tests.xml
+            .runtime/browser-results
+          if-no-files-found: error
+          retention-days: 14
