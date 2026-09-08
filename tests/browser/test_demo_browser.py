@@ -6,6 +6,7 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 import json
 import os
 from pathlib import Path
+import shutil
 import threading
 from urllib.parse import urlsplit
 
@@ -23,8 +24,19 @@ class QuietHandler(SimpleHTTPRequestHandler):
 def demo_url(tmp_path_factory):
     if os.environ.get("FOCUSPET_BROWSER_TESTS") != "1":
         pytest.skip("HTTP browser suite is opt-in: set FOCUSPET_BROWSER_TESTS=1 and install Chromium")
+    remote = os.environ.get("FOCUSPET_DEMO_URL")
+    if remote:
+        parsed = urlsplit(remote)
+        if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+            pytest.fail("FOCUSPET_DEMO_URL must be an HTTP or HTTPS URL")
+        yield remote
+        return
     root = tmp_path_factory.mktemp("http-demo")
-    export_demo("workday", root / "focuspet", seed=7)
+    existing = os.environ.get("FOCUSPET_DEMO_DIRECTORY")
+    if existing:
+        shutil.copytree(Path(existing), root / "focuspet")
+    else:
+        export_demo("workday", root / "focuspet", seed=7)
     server = ThreadingHTTPServer(("127.0.0.1", 0), partial(QuietHandler, directory=str(root)))
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
@@ -50,13 +62,21 @@ def page(browser, demo_url, request):
     page = context.new_page()
     errors = []
     requests = []
+    resource_failures = []
     page.on("pageerror", lambda error: errors.append(str(error)))
     page.on("console", lambda message: errors.append(message.text) if message.type == "error" else None)
     page.on("request", lambda item: requests.append(item.url))
+    page.on("requestfailed", lambda item: resource_failures.append({
+        "path": urlsplit(item.url).path, "failure": item.failure,
+    }))
+    page.on("response", lambda item: resource_failures.append({
+        "path": urlsplit(item.url).path, "status": item.status,
+    }) if item.status >= 400 else None)
     response = page.goto(demo_url)
     assert response and response.ok
     page.wait_for_function("window.FOCUS_PET_DEMO && document.querySelector('#scenario').options.length === 5")
     page.wait_for_function("Array.from(document.images).every(image => image.complete && image.naturalWidth > 0)")
+    page.wait_for_function("document.querySelector('#character').getContext('2d').getImageData(0,0,64,80).data.some((v,i) => i%4===3 && v>0)")
     yield page
     artifacts = os.environ.get("FOCUSPET_BROWSER_ARTIFACTS")
     if artifacts:
@@ -64,11 +84,14 @@ def page(browser, demo_url, request):
         output.mkdir(parents=True, exist_ok=True)
         page.screenshot(path=str(output / f"{request.node.name}.png"), full_page=True)
         (output / f"{request.node.name}.json").write_text(json.dumps({
-            "transport": "HTTP", "project_subpath": "/focuspet/", "browser": browser.version,
+            "transport": urlsplit(demo_url).scheme.upper(),
+            "project_subpath": urlsplit(demo_url).path, "browser": browser.version,
             "console_errors": errors, "requests": [urlsplit(url).path for url in requests],
+            "resource_failures": resource_failures,
         }, indent=2) + "\n")
     context.close()
     assert errors == []
+    assert resource_failures == []
     origin = urlsplit(demo_url)
     assert all(urlsplit(url).netloc == origin.netloc for url in requests), "Unexpected external request"
 

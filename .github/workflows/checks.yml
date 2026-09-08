@@ -32,6 +32,10 @@ jobs:
           python-version: '3.11.9'
           cache: pip
           cache-dependency-path: .github/requirements-ci.lock
+      - name: Install Qt runtime libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libegl1 libopengl0
       - name: Install locked dependencies
         run: |
           python -m pip install -r .github/requirements-ci.lock
@@ -61,6 +65,7 @@ jobs:
             .runtime/ci-tests.xml
             ${{ runner.temp }}/package-smoke/summary.json
           if-no-files-found: error
+          include-hidden-files: true
           retention-days: 14
 
   native-ui:
@@ -92,6 +97,7 @@ jobs:
           name: macos-ui-results
           path: .runtime/macos-ui.xml
           if-no-files-found: error
+          include-hidden-files: true
           retention-days: 14
 
   browser:
@@ -112,6 +118,10 @@ jobs:
           python-version: '3.11.9'
           cache: pip
           cache-dependency-path: .github/requirements-ci.lock
+      - name: Install Qt runtime libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libegl1 libopengl0
       - name: Install locked dependencies
         run: |
           python -m pip install -r .github/requirements-ci.lock
@@ -128,4 +138,5 @@ jobs:
             .runtime/browser-tests.xml
             .runtime/browser-results
           if-no-files-found: error
+          include-hidden-files: true
           retention-days: 14
