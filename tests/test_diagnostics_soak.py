@@ -174,3 +174,133 @@ def test_close_stops_service_even_when_action_queue_is_saturated():
     service._thread = SimpleNamespace(join=lambda timeout: None)
     service.close()
     assert service._stop.is_set()
+
+
+def test_transient_process_oserror_preserves_other_fields_and_recovers():
+    import errno
+
+    process = Process()
+    sampler = soak.ProcessSampler(7, process_factory=lambda _: process)
+    original = process.memory_info
+
+    def unavailable():
+        raise OSError(errno.EIO, "temporary failure", "/private/not-to-record")
+
+    process.memory_info = unavailable
+    partial = sampler.sample(100)
+    assert partial["status"] == "partial" and partial["identity_verified"]
+    assert partial["main"]["rss_bytes"] is None and partial["total_rss_bytes"] is None
+    assert partial["main"]["threads"] == 2 and partial["main"]["cpu_seconds"] == 1
+    assert partial["errors"][0]["operation"] == "process.memory_info"
+    assert partial["errors"][0]["errno"] == errno.EIO
+    assert "/private/" not in json.dumps(partial)
+    process.memory_info = original
+    assert sampler.sample(105)["status"] == "available"
+
+
+def test_child_enumeration_oserror_is_unknown_not_zero():
+    import errno
+
+    process = Process()
+
+    def unavailable(recursive=True):
+        raise OSError(errno.EINTR, "interrupted")
+
+    process.children = unavailable
+    result = soak.ProcessSampler(7, process_factory=lambda _: process).sample(100)
+    assert result["children_complete"] is False and result["unavailable_children"] is None
+    assert result["total_threads"] is None and result["total_rss_bytes"] is None
+    assert result["errors"][0]["operation"] == "process.children"
+
+
+def test_monitor_transient_write_failure_recovers_with_evidence(tmp_path):
+    import errno
+    import io
+
+    clock, process = Clock(), Process()
+    calls = []
+
+    def writer(path, value):
+        calls.append(1)
+        if len(calls) == 1:
+            raise OSError(errno.EIO, "write unavailable")
+        soak.atomic_json(path, value)
+
+    errors = io.StringIO()
+    report = soak.monitor(
+        pid=7,
+        minutes=0.1,
+        interval=2,
+        output=tmp_path / "recovered.json",
+        monotonic=clock.monotonic,
+        sleep=clock.sleep,
+        sampler_factory=lambda pid: soak.ProcessSampler(pid, process_factory=lambda _: process),
+        writer=writer,
+        error_stream=errors,
+    )
+    saved = json.loads((tmp_path / "recovered.json").read_text())
+    assert report["completed"] and saved["report_persisted"]
+    assert saved["write_failures"] == 1 and saved["ended_utc"]
+    assert saved["errors"][0]["operation"] == "report.write"
+    assert '"errno": 5' in errors.getvalue()
+
+
+def test_persistent_write_failure_ends_incomplete_and_preserves_final_error(tmp_path):
+    import errno
+    import io
+
+    clock, process = Clock(), Process()
+
+    def writer(path, value):
+        raise OSError(errno.ENOSPC, "no space")
+
+    errors = io.StringIO()
+    report = soak.monitor(
+        pid=7,
+        minutes=2,
+        interval=2,
+        output=tmp_path / "unwritten.json",
+        monotonic=clock.monotonic,
+        sleep=clock.sleep,
+        sampler_factory=lambda pid: soak.ProcessSampler(pid, process_factory=lambda _: process),
+        writer=writer,
+        error_stream=errors,
+    )
+    assert not report["completed"] and not report["report_persisted"]
+    assert report["ended_utc"] and report["actual_elapsed_s"] == 4
+    assert report["write_failures"] == 4 and len(report["samples"]) == 3
+    assert report["stop_reason"] == "final report could not be persisted"
+    assert report["errors"][0]["errno"] == errno.ENOSPC
+    assert '"event": "monitor-final"' in errors.getvalue()
+
+
+def test_unexpected_sample_oserror_marks_missing_sample_without_losing_run(tmp_path):
+    import errno
+    import io
+
+    clock, process = Clock(), Process()
+    sampler = soak.ProcessSampler(7, process_factory=lambda _: process)
+    original = sampler.sample
+    calls = []
+
+    def sometimes(now):
+        calls.append(now)
+        if len(calls) == 2:
+            raise OSError(errno.EIO, "temporary process read")
+        return original(now)
+
+    sampler.sample = sometimes
+    report = soak.monitor(
+        pid=7,
+        minutes=0.1,
+        interval=2,
+        output=tmp_path / "partial.json",
+        monotonic=clock.monotonic,
+        sleep=clock.sleep,
+        sampler_factory=lambda _: sampler,
+        error_stream=io.StringIO(),
+    )
+    assert report["completed"] and report["error_count"] == 1
+    assert report["summary"]["resource_missing_samples"] == 1
+    assert report["samples"][1]["process"]["main"]["rss_bytes"] is None
+    assert report["samples"][2]["process"]["main"]["rss_bytes"] == 1024

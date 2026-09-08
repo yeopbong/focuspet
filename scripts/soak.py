@@ -13,6 +13,10 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import os
+import sys
+import tempfile
+import traceback
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -73,9 +77,60 @@ CHECKS = (
 def atomic_json(destination, value):
     destination = Path(destination)
     destination.parent.mkdir(parents=True, exist_ok=True)
-    temporary = destination.with_name(destination.name + ".tmp")
-    temporary.write_text(json.dumps(value, indent=2, allow_nan=False), encoding="utf-8")
-    temporary.replace(destination)
+    # A unique sibling avoids collisions with another inspector using the same name.
+    temporary = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            dir=destination.parent,
+            prefix=destination.name + ".",
+            suffix=".tmp",
+            delete=False,
+        ) as stream:
+            temporary = Path(stream.name)
+            json.dump(value, stream, indent=2, allow_nan=False)
+        os.replace(temporary, destination)
+    finally:
+        if temporary is not None:
+            try:
+                temporary.unlink(missing_ok=True)
+            except OSError:
+                pass
+
+
+def error_details(error, operation):
+    """Keep actionable API/errno/stack locations without private paths or exception payloads."""
+    return {
+        "operation": operation,
+        "type": type(error).__name__,
+        "errno": getattr(error, "errno", None),
+        "stack": [
+            {"file": Path(frame.filename).name, "line": frame.lineno, "function": frame.name}
+            for frame in traceback.extract_tb(error.__traceback__)
+        ],
+    }
+
+
+def missing_process(pid, error):
+    return {
+        "main": {
+            "pid": pid,
+            "cpu_percent_one_core": None,
+            "cpu_seconds": None,
+            "rss_bytes": None,
+            "threads": None,
+            "io": None,
+        },
+        "children": [],
+        "children_complete": False,
+        "unavailable_children": None,
+        "total_rss_bytes": None,
+        "total_threads": None,
+        "identity_verified": False,
+        "status": "unavailable",
+        "errors": [error],
+    }
 
 
 def utc_now():
@@ -132,59 +187,90 @@ class ProcessSampler:
         self.identity = (pid, self.main.create_time())
         self.previous = {}
 
-    def _one(self, process, now):
-        identity = (process.pid, process.create_time())
-        cpu = process.cpu_times()
-        seconds = cpu.user + cpu.system
+    @staticmethod
+    def _read(process, name, errors, call=None):
+        try:
+            return (call or getattr(process, name))()
+        except (psutil.NoSuchProcess, psutil.ZombieProcess):
+            raise
+        except (OSError, psutil.Error) as error:
+            errors.append(error_details(error, "process." + name))
+            return None
+
+    def _one(self, process, now, errors):
+        created = self._read(process, "create_time", errors)
+        identity = (process.pid, created)
+        cpu = self._read(process, "cpu_times", errors)
+        seconds = cpu.user + cpu.system if cpu is not None else None
         previous = self.previous.get(identity)
         percent = None
-        if previous is not None and now > previous[0]:
-            percent = max(0, seconds - previous[1]) / (now - previous[0]) * 100
-        self.previous[identity] = (now, seconds)
+        if seconds is not None and created is not None:
+            if previous is not None and now > previous[0]:
+                percent = max(0, seconds - previous[1]) / (now - previous[0]) * 100
+            self.previous[identity] = (now, seconds)
         try:
             io = process.io_counters()
             io_counts = {
                 key: getattr(io, key, None)
                 for key in ("read_count", "write_count", "read_bytes", "write_bytes")
             }
-        except (AttributeError, NotImplementedError, psutil.Error):
+        except (AttributeError, NotImplementedError):
+            io_counts = None  # macOS does not expose this psutil capability.
+        except (OSError, psutil.Error) as error:
+            errors.append(error_details(error, "process.io_counters"))
             io_counts = None
+        memory = self._read(process, "memory_info", errors)
         return {
             "pid": process.pid,
             "cpu_percent_one_core": percent,
             "cpu_seconds": seconds,
-            "rss_bytes": process.memory_info().rss,
-            "threads": process.num_threads(),
+            "rss_bytes": memory.rss if memory is not None else None,
+            "threads": self._read(process, "num_threads", errors),
             "io": io_counts,
         }
 
     def sample(self, now):
-        if not self.main.is_running() or self.main.create_time() != self.identity[1]:
+        errors: list[dict] = []
+        running = self._read(self.main, "is_running", errors)
+        created = self._read(self.main, "create_time", errors)
+        status = self._read(self.main, "status", errors)
+        if (
+            running is False
+            or (created is not None and created != self.identity[1])
+            or status == psutil.STATUS_ZOMBIE
+        ):
             raise psutil.NoSuchProcess(self.identity[0])
-        if self.main.status() == psutil.STATUS_ZOMBIE:
-            raise psutil.NoSuchProcess(self.identity[0])
-        main = self._one(self.main, now)
+        verified = running is True and created == self.identity[1] and status is not None
+        main = self._one(self.main, now, errors)
         children = []
         unavailable_children = 0
-        try:
-            descendants = self.main.children(recursive=True)
-        except psutil.Error:
-            descendants = []
-            unavailable_children += 1
+        descendants = self._read(self.main, "children", errors, lambda: self.main.children(recursive=True))
+        children_complete = descendants is not None
         live_ids = {self.identity}
-        for child in descendants:
+        for child in descendants or []:
             try:
-                children.append(self._one(child, now))
+                children.append(self._one(child, now, errors))
                 live_ids.add((child.pid, child.create_time()))
-            except psutil.Error:
+            except (OSError, psutil.Error) as error:
+                errors.append(error_details(error, "child.sample"))
                 unavailable_children += 1
+                children_complete = False
         self.previous = {key: value for key, value in self.previous.items() if key in live_ids}
+        group = [main] + children
         return {
             "main": main,
             "children": children,
-            "unavailable_children": unavailable_children,
-            "total_rss_bytes": main["rss_bytes"] + sum(child["rss_bytes"] for child in children),
-            "total_threads": main["threads"] + sum(child["threads"] for child in children),
+            "children_complete": children_complete,
+            "unavailable_children": unavailable_children if descendants is not None else None,
+            "total_rss_bytes": sum(p["rss_bytes"] for p in group)
+            if children_complete and all(p["rss_bytes"] is not None for p in group)
+            else None,
+            "total_threads": sum(p["threads"] for p in group)
+            if children_complete and all(p["threads"] is not None for p in group)
+            else None,
+            "identity_verified": verified,
+            "status": "partial" if errors else "available",
+            "errors": errors,
         }
 
 
@@ -214,6 +300,9 @@ def summarize(samples):
     snapshots = [s["diagnostics"].get("snapshot", {}) for s in samples]
     return {
         "phases": phases,
+        "resource_missing_samples": sum(
+            s["process"].get("status", "available") != "available" for s in samples
+        ),
         "stale_or_missing_diagnostic_samples": sum(s["diagnostics"]["status"] != "fresh" for s in samples),
         "slow_ui_poll_samples": sum((s.get("ui_cache_poll_age_s") or 0) > 5 for s in snapshots),
         "max_command_queue": max((s.get("command_queue", 0) for s in snapshots), default=0),
@@ -262,14 +351,18 @@ def monitor(
     monotonic=time.monotonic,
     sleep=time.sleep,
     sampler_factory=ProcessSampler,
+    writer=None,
+    error_stream=None,
 ):
     if not finite(minutes) or minutes <= 0 or not finite(interval) or not 0.1 <= interval <= 60:
         raise ValueError("Duration must be positive and sample interval must be 0.1 to 60 seconds")
+    writer = writer or atomic_json
+    error_stream = error_stream or sys.stderr
     sampler = sampler_factory(pid)
     started = monotonic()
     duration = minutes * 60
     report = {
-        "schema": "wall-clock-soak-v2",
+        "schema": "wall-clock-soak-v3",
         "started_utc": utc_now(),
         "pid": pid,
         "process_created_utc_seconds": sampler.identity[1],
@@ -283,10 +376,41 @@ def monitor(
         "scope": "Process resources, cached service health and separately recorded UI checks.",
         "restart_policy": "One identity per run; restarts are never stitched into continuous duration.",
         "phase_limits": "Transition intervals are unclassified; children shorter than one sample may be missed.",
+        "error_count": 0,
+        "write_failures": 0,
+        "errors": [],
+        "report_persisted": False,
+        "stop_reason": "monitoring",
+        "monitor_status": "running",
     }
-    previous = started
-    previous_phase = None
-    previous_training = None
+    previous = last_verified = started
+    previous_phase = previous_training = None
+    consecutive_writes_failed = 0
+
+    def record_error(detail):
+        entry = {"elapsed_s": monotonic() - started, **detail}
+        report["error_count"] += 1
+        report["errors"].append(entry)
+        report["errors"] = report["errors"][-100:]  # Samples retain each per-field missing observation.
+        try:
+            print(json.dumps({"event": "monitor-error", **entry}), file=error_stream, flush=True)
+        except OSError:
+            pass  # A closed console must not stop file-backed monitoring.
+
+    def persist():
+        nonlocal consecutive_writes_failed
+        report["report_persisted"] = True
+        try:
+            writer(output, report)
+            consecutive_writes_failed = 0
+            return True
+        except (OSError, ValueError, TypeError) as error:
+            report["report_persisted"] = False
+            report["write_failures"] += 1
+            consecutive_writes_failed += 1
+            record_error(error_details(error, "report.write"))
+            return False
+
     try:
         while True:
             now = monotonic()
@@ -294,18 +418,29 @@ def monitor(
             report["max_sample_gap_s"] = max(report["max_sample_gap_s"], gap)
             if gap > max(30, interval * 3):
                 report["continuous_observation"] = False
-            process = sampler.sample(now)
+            try:
+                process = sampler.sample(now)
+            except (psutil.NoSuchProcess, psutil.ZombieProcess):
+                raise
+            except (OSError, psutil.Error) as error:
+                process = missing_process(pid, error_details(error, "process.sample"))
+            for detail in process.get("errors", []):
+                record_error(detail)
+            if process.get("identity_verified", True):
+                last_verified = now
+            elif now - last_verified > max(30, interval * 3):
+                report["continuous_observation"] = False
             heartbeat = read_diagnostics(diagnostics, pid, now)
             snapshot = heartbeat.get("snapshot", {})
             phase = "unknown"
             if heartbeat["status"] == "fresh":
                 phase = "training" if snapshot.get("training_active") else "companion"
                 if snapshot.get("mode") == "synthetic-demo":
-                    phase = "unknown"  # Accelerated replay cannot establish ordinary companion cost.
+                    phase = "unknown"
             raw_phase = phase
             training = snapshot.get("training_generation")
             if phase != previous_phase or training != previous_training:
-                phase = "unknown"  # CPU deltas span the interval, so do not mix training transitions.
+                phase = "unknown"
             previous_phase, previous_training = raw_phase, training
             report["samples"].append(
                 {
@@ -325,21 +460,51 @@ def monitor(
                 report["completed"] = report["continuous_observation"]
                 report["stop_reason"] = "requested duration observed"
                 break
-            atomic_json(output, report)
+            if not persist() and consecutive_writes_failed >= 3:
+                report["stop_reason"] = "report persistence unavailable"
+                break
             previous = now
             sleep(min(interval, max(0.0, duration - (monotonic() - started))))
     except (psutil.NoSuchProcess, psutil.ZombieProcess):
         report["stop_reason"] = "process exited or identity changed"
-    except psutil.AccessDenied:
-        report["stop_reason"] = "process inspection unavailable"
     except KeyboardInterrupt:
         report["stop_reason"] = "interrupted"
+    except Exception as error:
+        record_error(error_details(error, "monitor.loop"))
+        report["stop_reason"] = "unexpected monitor failure"
     finally:
         report["actual_elapsed_s"] = monotonic() - started
         report["ended_utc"] = utc_now()
         report["summary"] = summarize(report["samples"])
         report["manual_checks"] = read_markers(markers, started, monotonic())
-        atomic_json(output, report)
+        report["monitor_status"] = "completed" if report["completed"] else "incomplete"
+        if not persist():
+            report["completed"] = False
+            report["monitor_status"] = "incomplete"
+            report["stop_reason"] = "final report could not be persisted"
+            try:
+                print(
+                    json.dumps(
+                        {
+                            "event": "monitor-final",
+                            **{
+                                key: report[key]
+                                for key in (
+                                    "completed",
+                                    "ended_utc",
+                                    "actual_elapsed_s",
+                                    "stop_reason",
+                                    "error_count",
+                                    "write_failures",
+                                )
+                            },
+                        }
+                    ),
+                    file=error_stream,
+                    flush=True,
+                )
+            except OSError:
+                pass
     return report
 
 
@@ -389,7 +554,7 @@ def main(argv=None):
             markers=args.markers,
         )
     except (ValueError, OSError, psutil.Error) as error:
-        parser.exit(2, "Unable to monitor: " + type(error).__name__ + "\n")
+        parser.exit(2, json.dumps(error_details(error, "monitor.initialization")) + "\n")
     print(json.dumps({key: report[key] for key in ("completed", "actual_elapsed_s", "stop_reason")}))
     return 0 if report["completed"] else 1
 

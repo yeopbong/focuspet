@@ -4,7 +4,7 @@ Focus Pet 是一个安静的像素桌面伙伴，根据本机活动统计估计�
 
 ## 安装与启动
 
-原生目标平台为 macOS 14+、Apple Silicon arm64、Python 3.11。其他系统的真实采集不标记为通过。源码构建产物位于 `dist/Focus Pet.app`；本轮实际验证、签名与发布状态见 [平台状态](platform-status.md)。
+原生目标平台为 macOS 14+、Apple Silicon arm64、Python 3.11。其他系统的真实采集不标记为通过。从 [发布页](https://github.com/yeopbong/focuspet/releases/tag/v0.1.0) 下载 macOS ZIP 和 SHA256SUMS.txt，核对 SHA256 后解压，将 Focus Pet.app 移入 Applications。包内已包含 Python。当前包只有临时签名，没有 Developer ID 签名或公证；若被系统阻止，参考 [Apple 的逐应用放行说明](https://support.apple.com/en-us/102445)，或采用源码安装。实际验证范围见 [平台状态](platform-status.md)。
 
 源码方式，在项目根目录执行：
 
@@ -61,6 +61,6 @@ Work Load 是连续指数：0 为新工作周期起点，100 为固定产品参�
 .venv/bin/focuspet export-demo --scenario workday --output demo
 ```
 
-`demo/index.html` 可直接在浏览器打开，无需服务器。它仅播放 Python 核心导出的合成轨迹，无法读取访问者的桌面和全局键鼠。
+[在线演示](https://yeopbong.github.io/focuspet/) 已验证。离线包中的 `demo/index.html` 不依赖服务器，但本次没有完成直接 file:// 浏览器操作验证。它仅播放 Python 核心导出的合成轨迹，无法读取访问者的桌面和全局键鼠。
 
 实际已测状态请查看 [平台状态](platform-status.md)、[原生测试清单](native-testing.md)、[已知限制](known-limitations.md) 和 [模拟结果](../experiments/results/report.md)。模拟结果不代表真实用户长期改善。

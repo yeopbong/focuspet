@@ -4,9 +4,21 @@ A local desktop companion that estimates work rhythms from activity counts, show
 
 [Repository](https://github.com/yeopbong/focuspet) · [中文使用说明](docs/usage-zh.md) · [Privacy](docs/privacy.md) · [Validation status](docs/platform-status.md)
 
-**Browser demo:** the planned Pages address is `https://yeopbong.github.io/focuspet/`. Deployment is pending verification. Open `demo/index.html` locally to use the offline demo.
+[Try the browser demo](https://yeopbong.github.io/focuspet/). It plays synthetic trajectories exported by the Python core. The `demo/` folder is also included for offline use; direct `file://` browser interaction has not been verified.
 
 ![Focus Pet desktop demo](docs/screenshots/native-demo.png)
+
+## Install on macOS
+
+Download `Focus-Pet-0.1.0-macos-arm64.zip` and `SHA256SUMS.txt` from the [release page](https://github.com/yeopbong/focuspet/releases/tag/v0.1.0). Verify the archive, unzip it, and move `Focus Pet.app` to Applications. This arm64 package includes Python and its dependencies.
+
+The package has an ad-hoc signature and is **not Developer ID signed or notarized**. If macOS blocks it, consult [Apple's guidance for opening an app from an unidentified developer](https://support.apple.com/en-us/102445), or use the source installation below. Collection starts only after your own in-app consent and the necessary macOS Input Monitoring access.
+
+```sh
+shasum -a 256 Focus-Pet-0.1.0-macos-arm64.zip
+```
+
+Compare the value with the matching line in `SHA256SUMS.txt`. The release also contains a self-contained offline demo archive and a verification record identifying the source revision and tested limits.
 
 ## Run from source
 
@@ -57,7 +69,7 @@ The five-seed simulation uses fixed time splits, 300-second purges and equal lab
 ./scripts/build_macos.sh
 ```
 
-Native Qt tests need a desktop session. Pure tests can run with `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1`, excluding `tests/test_ui.py`. The macOS build script writes `dist/Focus Pet.app`; signing, notarization, release assets and long-run checks are tracked in [validation status](docs/platform-status.md).
+Native Qt tests need a desktop session. Pure tests can run with `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1`, excluding `tests/test_ui.py`. The macOS build script requires a clean committed checkout and writes `dist/Focus Pet.app`; signing, notarization, release assets and long-run checks are tracked in [validation status](docs/platform-status.md).
 
 [Architecture](docs/architecture.md) · [Data dictionary](docs/data-dictionary.md) · [Characters](docs/characters.md) · [Known limitations](docs/known-limitations.md) · [Native checklist](docs/native-testing.md)
 
