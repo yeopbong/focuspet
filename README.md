@@ -60,5 +60,3 @@ Qt tests need a desktop session, or `QT_QPA_PLATFORM=offscreen` for headless wid
 [History replay](docs/export-replay.md) · [Architecture](docs/architecture.md) · [Data dictionary](docs/data-dictionary.md) · [Sprite format](docs/characters.md)
 
 The existing five-seed experiments use simulated activity and feedback. Their results do not measure a person's accuracy or improved work habits. [Run the experiments](docs/experiment-protocol.md) · [Results and raw records](experiments/results/report.md).
-
-Source code is [MIT](LICENSE). Character assets use CC0-1.0 to the extent rights can be dedicated; see their manifests. Dependencies retain their [licenses and notices](docs/third-party/README.md).
